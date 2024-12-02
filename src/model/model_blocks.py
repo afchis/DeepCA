@@ -77,53 +77,87 @@ class BottleneckBlock(nn.Module):
         return w
 
 
-class ADNNTDeConvBlock(nn.Module):
+class ConvBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
         stride: int = 1,
-        num_iters: int = 10
+        admm: bool = False,
+        rho: int = 1,
+        num_iters: int = 20
     ):
         super().__init__()
+        self.admm = admm
+        self.rho = rho
         self.num_iters = num_iters
-        self.conv = nn.Conv2dTranspose(in_channels=in_channels,
-                                       out_channels=out_channels,
-                                       kernel_size=kernel_size,
-                                       padding=kernel_size//2,
-                                       stride=stride)
-        self.norm = nn.BatchNorm2d(out_channels)
-
-    def forward(self, x):
-        w = x
-        for _ in range(self.num_iters):
-            w = torch.clamp(self.norm(self.conv(w)), min=0)
-        return x
-
-
-class ADNNConvBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        num_iters: int = 10
-    ):
-        super().__init__()
-        self.num_iters = num_iters
-        self.conv = nn.Conv2d(in_channels=in_channels,
+        self.conv1 = nn.Conv2d(in_channels=in_channels,
                               out_channels=out_channels,
                               kernel_size=kernel_size,
                               padding=kernel_size//2,
                               stride=stride)
-        self.norm = nn.BatchNorm2d(out_channels)
+        self.norm1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(in_channels=out_channels,
+                              out_channels=out_channels,
+                              kernel_size=kernel_size,
+                              padding=kernel_size//2)
+        self.norm2 = nn.BatchNorm2d(out_channels)
+        self.act = nn.ReLU()
+
+    def _step_forward(self, x):
+        x = self.act(self.norm1(self.conv1(x)))
+        x = self.norm2(self.conv2(x))
+        return x
 
     def forward(self, x):
-        w = x
+        w = self._step_forward(x)
         for _ in range(self.num_iters):
-            w = torch.clamp(self.norm(self.conv(w)), min=0)
+            w_prev = w.clone()
+            w = w_prev + (self.rho / (self.rho + 1)) * (self.act(w_prev - w_prev))
+            w = torch.clamp(w, min=0.)
+        return x
+
+
+class DeConvBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        num_iters: int = 10
+    ):
+        super().__init__()
+        self.num_iters = num_iters
+        self.deconv1 = nn.Conv2dTranspose(in_channels=in_channels,
+                                          out_channels=out_channels,
+                                          kernel_size=kernel_size,
+                                          padding=kernel_size//2,
+                                          stride=stride)
+        self.norm1 = nn.BatchNorm2d(out_channels)
+        self.deconv1 = nn.Conv2dTranspose(in_channels=in_channels,
+                                          out_channels=out_channels,
+                                          kernel_size=kernel_size,
+                                          padding=kernel_size//2)
+        self.norm1 = nn.BatchNorm2d(out_channels)
+        self.deconv2 = nn.Conv2dTranspose(in_channels=out_channeos,
+                                          out_channels=out_channels,
+                                          kernel_size=kernel_size,
+                                          padding=kernel_size//2,
+                                          stride=stride)
+        self.norm2 = nn.BatchNorm2d(out_channels)
+        self.act = nn.ReLU()
+
+    def _step_forward(self, x):
+
+
+    def forward(self, x):
+        w = self._step_forward(x)
+        for _ in range(self.num_iters):
+            w_prev = w.clone()
+            w = w_prew + (self.rho / (self.rho + 1)) * (self.act(w_prev - w_prev))
+            w = torch.clamp(w), min=0.)
         return x
 
 
