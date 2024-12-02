@@ -2,12 +2,48 @@ import torch
 import torch.nn as nn
 
 
+class BasicBlock(nn.Module):
+    expantion = 1
+
+    def __init__(self, in_ch, out_ch, stride=1, downsample=None, admm=False, rho=1, iters=20):
+        super().__init__()
+        self.admm = admm
+        self.rho = rho
+        self.iters = iters
+        self.downsample = downsample
+        self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.norm1 = nn.BatchNorm2d(out_ch)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1, bias=False)
+        self.norm2 = nn.BatchNorm2d(out_ch)
+        self.act = nn.ReLU()
+
+    def _step_forward(self, x):
+        identity = x
+        out = self.act(self.norm1(self.conv1(x)))
+        out = self.norm2(self.conv2(out))
+        if self.downsample:
+            identity = self.downsample(x)
+        out += identity
+        return out
+
+    def forward(self, x):
+        w = self._step_forward(x)
+        if self.admm:
+            for _ in range(self.iters):
+                w_prev = w.clone()
+                w = w_prev + (self.rho / (self.rho + 1)) * (self.act(w_prev) - w_prev)
+                w = torch.clamp(w, min=0.)
+        else:
+            w = self.act(w)
+        return w
+
 
 class BottleneckBlock(nn.Module):
     expantion = 4
 
-    def __init__(self, in_ch, out_ch, stride=1, downsample=None, rho=1, iters=20):
+    def __init__(self, in_ch, out_ch, stride=1, downsample=None, admm=False, rho=1, iters=20):
         super().__init__()
+        self.admm = admm
         self.rho = rho
         self.iters = iters
         self.downsample = downsample
@@ -31,9 +67,13 @@ class BottleneckBlock(nn.Module):
     
     def forward(self, x):
         w = self._step_forward(x)
-        for i in range(self.iters):
-            w_prev = w.clone()
-            w = torch.clamp(w_prev + self.rho * (self.act(w_prev) - w_prev), min=0.)
+        if self.admm:
+            for _ in range(self.iters):
+                w_prev = w.clone()
+                w = w_prev + (self.rho / (self.rho + 1)) * (self.act(w_prev) - w_prev)
+                w = torch.clamp(w, min=0.)
+        else: 
+            w = self.act(w)
         return w
 
 

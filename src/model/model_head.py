@@ -6,14 +6,14 @@ from .resnet import ResNetBackbone, BottleneckBlock
 
 
 class DeepCAResNet(nn.Module):
-    def __init__(self, in_channels=4):
+    def __init__(self, in_channels=4, block=BottleneckBlock, layers=[3, 4, 6, 3]):
         super().__init__()
-        self.backbone = ResNetBackbone(in_channels=4, block=BottleneckBlock, layers=[3, 4, 6, 3])
+        self.backbone = ResNetBackbone(in_channels=4, block=block, layers=layers)
+        self.decoder = NotImplemented
 
     def forward(self, x):
         x = self.backbone(x)
         raise NotImplementedError("class DeepCAResNet.forward()")
-
 
 
 class DeepCAUnet(nn.Module):
