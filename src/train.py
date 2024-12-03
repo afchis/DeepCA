@@ -69,10 +69,10 @@ class TrainerMultiGPU:
         self.logger = Logger(trainer=self)
         loss_metrics = {
             "train": {
-                "losses": ["КроссЭнтропия"],
+                "losses": ["l1_loss"],
             },
             "valid": {
-                "losses": ["КроссЭнтропия"],
+                "losses": ["l1_loss"],
             },
         }
         self.logger.init(loss_metrics)
@@ -97,14 +97,10 @@ class TrainerMultiGPU:
         return wav, label
 
     def train(self):
-        patience_epochs = self.meta["params"]["patience_epochs"]
-        loss_rule = PatienceRule("Loss", patience_epochs, _max=False)
-        accuracy_rule = PatienceRule("Accuracy", patience_epochs, _max=True)
-        with EarlyStopper(accuracy_rule, loss_rule) as earlystopper:
-            for epoch in range(1, self.meta["params"]["max_epoch"] + 1):
-                self.logger.new_epoch()
-                self._train_epoch(epoch)
-                self.scheduler.step()
+        for epoch in range(1, self.meta["params"]["max_epoch"] + 1):
+            self.logger.new_epoch()
+            self._train_epoch(epoch)
+            self.scheduler.step()
         self.logger.finish()
 
     def _train_epoch(self, epoch):
@@ -118,45 +114,41 @@ class TrainerMultiGPU:
         save_model(self, epoch)
 
     def _train_step(self, data):
-        wav, label = self._data_to_device(data)
-        pred = self.model(torch.stack(wav, dim=0))
-        loss = self.loss_fn(pred, label)
-        loss.backward()
-        self.optimizer.step()
-        self.optimizer.zero_grad()
-        if self.meta["world_size"] > 1: dist.all_reduce(loss)
-        out = {
-            "losses": {
-                "КроссЭнтропия": loss.item()
-            }
-        }
-        return out
+        raise NotImplementedError("Trainer._train_step")
+    #     _, _ = self._data_to_device(data)
+    #     pred = self.model(_)
+    #     loss = self.loss_fn(pred, label)
+    #     loss.backward()
+    #     self.optimizer.step()
+    #     self.optimizer.zero_grad()
+    #     if self.meta["world_size"] > 1: dist.all_reduce(loss)
+    #     out = {
+    #         "losses": {
+    #             "l1_loss": loss.item()
+    #         }
+    #     }
+    #     return out
 
     @torch.no_grad()
     def _valid_step(self, data):
-        self.model.eval()
-        data = next(iter(self.valid_loader))
-        wav, label = self._data_to_device(data)
-        pred = list()
-        for _wav in wav:
-            pred.append(self._inference(_wav))
-        pred = torch.cat(pred, dim=0)
-        loss = self.loss_fn(pred, label)
-        pos, neg = accuracy_helper(pred, label, self.device)
-        accuracy = pos / (pos + neg)
-        if self.meta["world_size"] > 1:
-            dist.all_reduce(loss)
-            for item in accuracy: dist.all_reduce(item)
-        self.model.train()
-        out = {
-            "losses": {
-                "КроссЭнтропия": loss.item()
-            },
-            "metrics": {
-                "Точность": accuracy.item()
-            }
-        }
-        return out
+        raise NotImplementedError("Trainer._valid_step")
+    #     self.model.eval()
+    #     data = next(iter(self.valid_loader))
+    #     _, _ = self._data_to_device(data)
+    #     pred = self.model(_)
+    #     loss = self.loss_fn(pred, label)
+    #     if self.meta["world_size"] > 1:
+    #         dist.all_reduce(loss)
+    #     self.model.train()
+    #     out = {
+    #         "losses": {
+    #             "l1_loss": loss.item()
+    #         },
+    #         "metrics": {
+    #             "_": _.iter()
+    #         }
+    #     }
+    #     return out
 
 
 def main(rank, world_size, params):
