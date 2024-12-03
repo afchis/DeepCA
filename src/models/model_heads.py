@@ -27,14 +27,25 @@ class DeepCAResNet(nn.Module):
         decoder_channels = self.backbone.ch_nums[:len(self.backbone.num_layers)]
         decoder_channels = list(reversed(decoder_channels))
         decoder_channels = [item * expantion for item in decoder_channels]
-        decoder_channels += [1]
-        self.decoder = Decoder(decoder_channels)
+        self.decoder = Decoder(decoder_channels,
+                               admm=admm,
+                               rho=rho,
+                               iters=iters)
+        self.upsample = nn.Upsample(scale_factor=2)
+        self.conv = nn.Conv2d(in_channels=decoder_channels[-1],
+                              out_channels=1,
+                              kernel_size=3,
+                              padding=1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
+        # print("input shape ->", x.shape)
         x = self.backbone(x)
-        print(x.shape), quit()
+        # print("backbone output shape ->", x.shape)
         x = self.decoder(x)
-        return x
+        # print("decoder output shape ->", x.shape)
+        x = self.conv(self.upsample(x))
+        return self.sigmoid(x)
 
 
 class DeepCAUnet(nn.Module):

@@ -19,7 +19,7 @@ class ResNetBackbone(nn.Module):
             nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+            # nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         ))
         for i, l in enumerate(layers):
             stride = 1 if i == 0 else 2
@@ -50,14 +50,14 @@ class ResNetBackbone(nn.Module):
     
 
 class Decoder(nn.Module):
-    def __init__(self, channels=[512, 256, 128, 64, 1], admm=False, rho=1, iter=20):
+    def __init__(self, channels=[512, 256, 128, 64], admm=False, rho=1, iters=20):
         super().__init__()
         blocks = list()
         for i in range(len(channels) - 1):
             in_ch = channels[i]
             out_ch = channels[i+1]
-            blocks.append(DeconvBlock(in_ch, out_ch, admm=admm, rho=rho, iters=iters))
-            blocks.append(ConvBlock(in_ch, out_ch, kernel_size=kernel_size, 
+            blocks.append(DeConvBlock(in_ch, out_ch, admm=admm, rho=rho, iters=iters))
+            blocks.append(ConvBlock(out_ch, out_ch, kernel_size=3, stride=1,
                                     admm=admm, rho=rho, iters=iters))
         self.blocks = nn.Sequential(*blocks)
 
