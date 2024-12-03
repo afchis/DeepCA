@@ -12,7 +12,7 @@ from .models.get_model import get_model
 from .utils.get_optimizer import get_optimizer
 from .utils.get_scheduler import get_scheduler
 # from utils.save_load_model import save_model, load_model
-from utils.logger import Logger
+from .utils.logger import Logger
 
 
 parser = argparse.ArgumentParser()
@@ -82,6 +82,7 @@ class TrainerMultiGPU:
     @staticmethod
     def setup_single():
         os.environ["WORLD_SIZE"] = "1"
+        os.environ["RANK"] = "0"
         print("Setup for train on cpu or single gpu: Done.")
 
     @staticmethod

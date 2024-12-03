@@ -2,7 +2,7 @@ import torch # TEMP
 import torch.nn as nn
 
 from .model_blocks import ConvBlock
-from .resnet import resnet18, resnet50
+from .model_parts import resnet18, resnet50
 
 
 class DeepCAResNet(nn.Module):
