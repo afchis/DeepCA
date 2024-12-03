@@ -4,7 +4,7 @@ from .dataset import NYUDataset
 
 
 def get_loader(params, stage):
-    dataset = NYUDataset(stage)
+    dataset = NYUDataset(params, stage)
     dataloader = DataLoader(
         dataset,
         batch_size=params["batch_size"],

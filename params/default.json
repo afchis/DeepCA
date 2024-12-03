@@ -2,10 +2,15 @@
     "model": {
         "name": "resnet18",
         "in_channels": 4,
-        "admm": true,
+        "num_layers": 2,
+        "admm": false,
         "rho": 1,
         "iters": 20
     },
+    "dataset": {   
+        "size": [28, 28]
+    },
+    "criterion": "mse_loss",
     "solver": "Adam",
     "learning_rate": 0.001,
     "beta1": 0.9,

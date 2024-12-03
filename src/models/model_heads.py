@@ -2,7 +2,7 @@ import torch # TEMP
 import torch.nn as nn
 
 from .model_blocks import ConvBlock
-from .model_parts import resnet18, resnet50
+from .model_parts import resnet18, resnet50, Decoder
 
 
 class DeepCAResNet(nn.Module):
@@ -17,12 +17,21 @@ class DeepCAResNet(nn.Module):
         admm = params["model"]["admm"]
         rho = params["model"]["rho"] if admm else None
         iters = params["model"]["iters"] if admm else None
-        self.backbone = get_backbone(in_channels=in_channels, admm=admm, rho=rho, iters=iters)
-        self.decoder = NotImplemented
+        num_layers = params["model"].get("num_layers")
+        self.backbone = get_backbone(in_channels=in_channels,
+                                     admm=admm,
+                                     rho=rho,
+                                     iters=iters,
+                                     num_layers=num_layers)
+        decoder_channels = list()
+        # for i, l in enumerate(self.backbone.layers):
+        self.decoder = Decoder()
 
     def forward(self, x):
         x = self.backbone(x)
-        raise NotImplementedError("class DeepCAResNet.forward()")
+        print(x.shape), quit()
+        x = self.decoder(x)
+        return x
 
 
 class DeepCAUnet(nn.Module):

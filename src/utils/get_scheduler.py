@@ -9,7 +9,7 @@ def get_scheduler(optimizer, params):
     elif params["policy"] == "MultiStepLR":
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=params["milestones"], gamma=params["gamma"])
     else:
-        NotImplementedError(f"scheduler: {params['policy']} is not implemented")
+        raise NotImplementedError(f"scheduler: {params['policy']} is not implemented")
     return scheduler
 
 

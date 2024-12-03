@@ -11,6 +11,7 @@ from .dataloader.get_loader import get_loader
 from .models.get_model import get_model
 from .utils.get_optimizer import get_optimizer
 from .utils.get_scheduler import get_scheduler
+from .utils.get_loss_fn import get_loss_fn
 # from utils.save_load_model import save_model, load_model
 from .utils.logger import Logger
 
@@ -29,7 +30,7 @@ class TrainerMultiGPU:
         }
         self._model_init()
         self._get_loaders()
-        # self.loss_fn = get_loss_fn(self.meta["params"])
+        self.loss_fn = get_loss_fn(self.meta["params"])
         self._get_learning_step()
         self.optimizer = get_optimizer(self.model, self.meta["params"])
         self.scheduler = get_scheduler(self.optimizer, self.meta["params"])
@@ -91,10 +92,10 @@ class TrainerMultiGPU:
         print(f"Setup for Distributed Data Parallel: Rank {rank} -> Done.")
 
     def _data_to_device(self, data):
-        wav, label = data
-        wav = [_wav.to(self.device) for _wav in wav]
-        label = label.to(self.device)
-        return wav, label
+        img, depth = data
+        img = img.to(self.device)
+        depth = depth.to(self.device)
+        return img, depth
 
     def train(self):
         for epoch in range(1, self.meta["params"]["max_epoch"] + 1):
@@ -106,28 +107,28 @@ class TrainerMultiGPU:
     def _train_epoch(self, epoch):
         self.model.train()
         for iter_, data in enumerate(self.train_loader):
+            print(iter_)
             data = self._train_step(data)
             if self.meta["rank"] == 0: self.logger.step(data, stage="train")
-            if (iter_ + 1)  % self.valid_ratio == 0:
-                data = self._valid_step(data)
-                if self.meta["rank"] == 0: self.logger.step(data, stage="valid")
-        save_model(self, epoch)
+            # if (iter_ + 1)  % self.valid_ratio == 0:
+            #     data = self._valid_step(data)
+            #     if self.meta["rank"] == 0: self.logger.step(data, stage="valid")
+        # save_model(self, epoch)
 
     def _train_step(self, data):
-        raise NotImplementedError("Trainer._train_step")
-    #     _, _ = self._data_to_device(data)
-    #     pred = self.model(_)
-    #     loss = self.loss_fn(pred, label)
-    #     loss.backward()
-    #     self.optimizer.step()
-    #     self.optimizer.zero_grad()
-    #     if self.meta["world_size"] > 1: dist.all_reduce(loss)
-    #     out = {
-    #         "losses": {
-    #             "l1_loss": loss.item()
-    #         }
-    #     }
-    #     return out
+        img, depth = self._data_to_device(data)
+        pred = self.model(img)
+        loss = self.loss_fn(pred, depth)
+        loss.backward()
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+        if self.meta["world_size"] > 1: dist.all_reduce(loss)
+        out = {
+            "losses": {
+                "l1_loss": loss.item()
+            }
+        }
+        return out
 
     @torch.no_grad()
     def _valid_step(self, data):

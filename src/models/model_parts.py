@@ -7,6 +7,8 @@ from .model_blocks import BasicBlock, BottleneckBlock
 class ResNetBackbone(nn.Module):
     def __init__(self, in_channels, block, layers, admm=False, rho=1, iters=20):
         super().__init__()
+        self.block = block
+        self.layers = layers
         self.ch_nums = [64, 128, 256, 512]
         self.admm = admm
         self.rho = rho
@@ -45,14 +47,28 @@ class ResNetBackbone(nn.Module):
         for layer in self.layers:
             x = layer(x)
         return x
+    
+
+class Decoder(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, x):
+        raise NotImplementedError("Decoder.forward")
 
 
-def resnet18(in_channels=4, admm=False, rho=1, iters=20):
-    return ResNetBackbone(in_channels, block=BasicBlock, layers=[2, 2, 2, 2], admm=admm, rho=rho, iters=iters)
+def resnet18(in_channels=4, admm=False, rho=1, iters=20, num_layers=None):
+    layers = [2, 2, 2, 2]
+    if num_layers: layers = layers[:num_layers]
+    return ResNetBackbone(in_channels, block=BasicBlock, layers=layers,
+                          admm=admm, rho=rho, iters=iters)
 
 
-def resnet50(in_channels=4, admm=False, rho=1, iters=20):
-    return ResNetBackbone(in_channels, block=BottleneckBlock, layers=[3, 4, 6, 4], admm=admm, rho=rho, iters=iters)
+def resnet50(in_channels=4, admm=False, rho=1, iters=20, num_layers=None):
+    layers = [3, 4, 6, 4]
+    if num_layers: layers = layers[:num_layers]
+    return ResNetBackbone(in_channels, block=BottleneckBlock, layers=layers,
+                          admm=admm, rho=rho, iters=iters)
 
 
 if __name__ == "__main__":

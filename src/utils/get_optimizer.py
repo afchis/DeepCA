@@ -13,7 +13,7 @@ def get_optimizer(model, params):
                                eps=params["eps"],
                                weight_decay=params["weight_decay"])
     else:
-        NotImplementedError(f"optimizer: {params['solver']} is not implemented")
+        raise NotImplementedError(f"optimizer: {params['solver']} is not implemented")
     return optimizer
 
 
