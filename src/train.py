@@ -29,10 +29,9 @@ class TrainerMultiGPU:
         }
         self._model_init()
         self._get_loaders()
-        self.loss_fn = get_loss_fn(self.meta["params"])
-        self.accuracy_helper = accuracy_helper
+        # self.loss_fn = get_loss_fn(self.meta["params"])
         self._get_learning_step()
-        self.optimizer = get_optim(self.model.parameters(), self.meta["params"])
+        self.optimizer = get_optimizer(self.model, self.meta["params"])
         self.scheduler = get_scheduler(self.optimizer, self.meta["params"])
 
     def _model_init(self):

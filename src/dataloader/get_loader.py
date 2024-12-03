@@ -11,5 +11,6 @@ def get_loader(params, stage):
         num_workers=params["num_workers"],
         shuffle=True if stage == "train" else False
     )
+    return dataloader
 
 
