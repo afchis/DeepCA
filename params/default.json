@@ -1,0 +1,24 @@
+{
+    "model": {
+        "name": "resnet18",
+        "in_channels": 4,
+        "admm": true,
+        "rho": 1,
+        "iters": 20
+    },
+    "solver": "Adam",
+    "learning_rate": 0.001,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "eps": 1e-06,
+    "weight_decay": 1e-06,
+    "policy": "StepLR",
+    "step_size": 50,
+    "gamma": 0,5,
+    "max_epoch": 200,
+    "target_device": ,
+    "batch_size": 32,
+    "num_workers": 8,
+    "target_devices": [],
+    "num_nodes": 1
+}
