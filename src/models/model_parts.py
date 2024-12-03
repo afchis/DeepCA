@@ -1,14 +1,14 @@
 import torch # TEMP
 import torch.nn as nn
 
-from .model_blocks import BasicBlock, BottleneckBlock
+from .model_blocks import BasicBlock, BottleneckBlock, ConvBlock, DeConvBlock
 
 
 class ResNetBackbone(nn.Module):
     def __init__(self, in_channels, block, layers, admm=False, rho=1, iters=20):
         super().__init__()
         self.block = block
-        self.layers = layers
+        self.num_layers = layers
         self.ch_nums = [64, 128, 256, 512]
         self.admm = admm
         self.rho = rho
@@ -50,11 +50,19 @@ class ResNetBackbone(nn.Module):
     
 
 class Decoder(nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, channels=[512, 256, 128, 64, 1], admm=False, rho=1, iter=20):
         super().__init__()
+        blocks = list()
+        for i in range(len(channels) - 1):
+            in_ch = channels[i]
+            out_ch = channels[i+1]
+            blocks.append(DeconvBlock(in_ch, out_ch, admm=admm, rho=rho, iters=iters))
+            blocks.append(ConvBlock(in_ch, out_ch, kernel_size=kernel_size, 
+                                    admm=admm, rho=rho, iters=iters))
+        self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x):
-        raise NotImplementedError("Decoder.forward")
+        return self.blocks(x)
 
 
 def resnet18(in_channels=4, admm=False, rho=1, iters=20, num_layers=None):

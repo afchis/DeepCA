@@ -23,9 +23,12 @@ class DeepCAResNet(nn.Module):
                                      rho=rho,
                                      iters=iters,
                                      num_layers=num_layers)
-        decoder_channels = list()
-        # for i, l in enumerate(self.backbone.layers):
-        self.decoder = Decoder()
+        expantion = self.backbone.block.expantion
+        decoder_channels = self.backbone.ch_nums[:len(self.backbone.num_layers)]
+        decoder_channels = list(reversed(decoder_channels))
+        decoder_channels = [item * expantion for item in decoder_channels]
+        decoder_channels += [1]
+        self.decoder = Decoder(decoder_channels)
 
     def forward(self, x):
         x = self.backbone(x)

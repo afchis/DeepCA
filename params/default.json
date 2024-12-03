@@ -8,7 +8,7 @@
         "iters": 20
     },
     "dataset": {   
-        "size": [28, 28]
+        "size": [256, 256]
     },
     "criterion": "mse_loss",
     "solver": "Adam",

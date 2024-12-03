@@ -114,10 +114,10 @@ class DeConvBlock(nn.Module):
         self.rho = rho
         self.iters = iters
         self.deconv = nn.ConvTranspose2d(in_channels=in_ch,
-                                          out_channels=out_ch,
-                                          kernel_size=4,
-                                          stride=2,
-                                          padding=1)
+                                         out_channels=out_ch,
+                                         kernel_size=4,
+                                         stride=2,
+                                         padding=1)
         self.norm = nn.BatchNorm2d(out_ch)
         self.act = nn.ReLU()
 
