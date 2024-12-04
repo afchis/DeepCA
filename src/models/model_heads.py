@@ -31,11 +31,6 @@ class DeepCAResNet(nn.Module):
                                admm=admm,
                                rho=rho,
                                iters=iters)
-        self.upsample = nn.Upsample(scale_factor=2)
-        self.conv = nn.Conv2d(in_channels=decoder_channels[-1],
-                              out_channels=1,
-                              kernel_size=3,
-                              padding=1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -44,8 +39,7 @@ class DeepCAResNet(nn.Module):
         # print("backbone output shape ->", x.shape)
         x = self.decoder(x)
         # print("decoder output shape ->", x.shape)
-        x = self.conv(self.upsample(x))
-        return self.sigmoid(x)
+        return x
 
 
 class DeepCAUnet(nn.Module):

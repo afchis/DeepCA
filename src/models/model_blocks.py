@@ -108,7 +108,7 @@ class ConvBlock(nn.Module):
 
 
 class DeConvBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, admm=False, rho=1, iters=20):
+    def __init__(self, in_ch, out_ch, kernel_size=4, stride=2, padding=1, admm=False, rho=1, iters=20):
         super().__init__()
         self.admm = admm
         self.rho = rho

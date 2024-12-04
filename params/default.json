@@ -1,14 +1,14 @@
 {
     "model": {
-        "name": "resnet18",
         "in_channels": 4,
+        "name": "resnet18",
         "num_layers": 2,
-        "admm": false,
+        "admm": true,
         "rho": 1,
         "iters": 20
     },
     "dataset": {   
-        "size": [256, 256]
+        "size": [32, 32]
     },
     "criterion": "mse_loss",
     "solver": "Adam",
@@ -26,3 +26,4 @@
     "target_devices": [],
     "num_nodes": 1
 }
+

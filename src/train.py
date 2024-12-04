@@ -107,7 +107,7 @@ class TrainerMultiGPU:
     def _train_epoch(self, epoch):
         self.model.train()
         for iter_, data in enumerate(self.train_loader):
-            print("train iter:", iter_)
+            # print("train iter:", iter_)
             data = self._train_step(data)
             if self.meta["rank"] == 0: self.logger.step(data, stage="train")
             # if (iter_ + 1)  % self.valid_ratio == 0:
