@@ -41,7 +41,7 @@ class TrainerMultiGPU:
             print(f"Initialization Trainer: CPU")
         else:
             if self.meta["world_size"] == 1:
-                self.device = self.meta["params"]["target_device"][0]
+                self.device = self.meta["params"]["target_devices"][0]
                 print(f"Initialization Trainer: GPU -> [ device: cuda:{self.device} ]")
             else:
                 self.device = self.meta["rank"]
@@ -105,17 +105,18 @@ class TrainerMultiGPU:
         self.logger.finish()
 
     def _train_epoch(self, epoch):
-        self.model.train()
+        self.valid_iterator = iter(self.valid_loader)
         for iter_, data in enumerate(self.train_loader):
             # print("train iter:", iter_)
             data = self._train_step(data)
             if self.meta["rank"] == 0: self.logger.step(data, stage="train")
-            # if (iter_ + 1)  % self.valid_ratio == 0:
-            #     data = self._valid_step(data)
-            #     if self.meta["rank"] == 0: self.logger.step(data, stage="valid")
+            if (iter_ + 1)  % self.valid_ratio == 0:
+                data = self._valid_step(data)
+                if self.meta["rank"] == 0: self.logger.step(data, stage="valid")
         # save_model(self, epoch)
 
     def _train_step(self, data):
+        self.model.train()
         img, depth = self._data_to_device(data)
         pred = self.model(img)
         loss = self.loss_fn(pred, depth)
@@ -125,31 +126,25 @@ class TrainerMultiGPU:
         if self.meta["world_size"] > 1: dist.all_reduce(loss)
         out = {
             "losses": {
-                "l1_loss": loss.item()
+                "l1_loss": loss.item()*1000,
             }
         }
         return out
 
     @torch.no_grad()
     def _valid_step(self, data):
-        raise NotImplementedError("Trainer._valid_step")
-    #     self.model.eval()
-    #     data = next(iter(self.valid_loader))
-    #     _, _ = self._data_to_device(data)
-    #     pred = self.model(_)
-    #     loss = self.loss_fn(pred, label)
-    #     if self.meta["world_size"] > 1:
-    #         dist.all_reduce(loss)
-    #     self.model.train()
-    #     out = {
-    #         "losses": {
-    #             "l1_loss": loss.item()
-    #         },
-    #         "metrics": {
-    #             "_": _.iter()
-    #         }
-    #     }
-    #     return out
+        data = next(self.valid_iterator)
+        self.model.eval()
+        img, depth = self._data_to_device(data)
+        pred = self.model(img)
+        loss = self.loss_fn(pred, depth)
+        if self.meta["world_size"] > 1: dist.all_reduce(loss)
+        out = {
+            "losses": {
+                "l1_loss": loss.item()*1000,
+            }
+        }
+        return out
 
 
 def main(rank, world_size, params):

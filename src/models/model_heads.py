@@ -39,7 +39,7 @@ class DeepCAResNet(nn.Module):
         # print("backbone output shape ->", x.shape)
         x = self.decoder(x)
         # print("decoder output shape ->", x.shape)
-        return x
+        return self.sigmoid(x)
 
 
 class DeepCAUnet(nn.Module):

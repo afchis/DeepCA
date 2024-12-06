@@ -4,7 +4,6 @@ import shutil
 import typing as t
 
 
-
 class Logger:
     def __init__(self, trainer):
         self.rank = trainer.meta["rank"]
@@ -12,11 +11,12 @@ class Logger:
         self.time = time.time()
         self.lr = trainer.meta["params"]["learning_rate"]
         self.num_epochs = trainer.meta["params"]["max_epoch"]
-        self.total_iters = self.num_epochs * (len(trainer.train_loader) + len(trainer.valid_loader))
+        self.total_iters_in_epoch = len(trainer.train_loader) + len(trainer.valid_loader)
+        self.total_iters = self.num_epochs * self.total_iters_in_epoch
         self.curr_time = time.time()
         curr_time = time.strftime("%a, %d %b %Y %H:%M:%S", time.gmtime())
-        message =  f"Начало обучения. Текущее время: {curr_time}. "
-        message += f"Количество эпох: {self.num_epochs}. Стартовая скорость обучения: {self.lr}"
+        message =  f"Learning start. Currnet time: {curr_time}. "
+        message += f"Num epoch: {self.num_epochs}. Start lr: {self.lr}"
 
     def init(self, loss_metrics: t.Dict[str, t.Dict[str, t.List[str]]]):
         self.progress = 0.0
@@ -77,24 +77,19 @@ class Logger:
         for t_type, target_dict in data.items():
             for t_name, target_float in data[t_type].items():
                 self.accum_dicts[stage][t_type][t_name].append(target_float)
-        for target_type, target_dict in data.items():
-            raise NotImplementedError("need to get message....") # TODO
-            self._get_losses(target_dict)
-        self._iter_message()
+        self._iter_message(stage)
 
-    def get_message(self, _dict, last_iter=False):
-        message = str()
-        if len(_dict) == 0:
-            message = "None"
-        else:
-            for name, values in _dict.items():
-                if last_iter:
-                    l = sum(values) / len(values)
-                    _dict[name] = [_dict[name][-1]]
-                else:
-                    l = values[-1]
-                message += f"{name}: {l:.4}"
-        return message
+    def _iter_message(self, stage):
+        type_message = str()
+        for t_type, target_dict in self.accum_dicts[stage].items():
+            target_message = str()
+            for t_name, target_list in target_dict.items():
+                value = target_list[-1]
+                target_message += f"{t_name}: {value:.4f} "
+            type_message += f"{t_type} -> {target_message}"
+        stage_message = f"{stage}: {type_message}"
+        message = f"Train: Iter: ({self.iters['total']}): [{self.progress:.2f}{chr(37)}] || {stage_message}||"
+        self._print_message(message=message, last_iter=False)
 
     def graph_write(self, name, value, info, last_iter=False):
         raise NotImplementedError("Logger.graph_write")

@@ -22,6 +22,7 @@ class NYUDataset(Dataset):
         dataset_stage = "train" if stage in ["train", "valid"] else "test"
         self.anno_path = os.path.join(self._data_path_, "data", f"nyu2_{dataset_stage}.csv")
         self.anno = pl.read_csv(source=self.anno_path, has_header=False)
+        self._split_data()
         # if not self.stage == "test":
         #     self._split_data()
         self.resize = A.Resize(h, w)
@@ -39,7 +40,11 @@ class NYUDataset(Dataset):
         self.toTensor = ToTensorV2()
     
     def _split_data(self):
-        raise NotImplementedError("Dataset._split_data for split to train and valid datasets")
+        split_value = int(len(self.anno) * 0.9)
+        if self.stage == "train":
+            self.anno = self.anno[:split_value]
+        elif self.stage == "valid":
+            self.anno = self.anno[split_value:]
 
     def _transforms(self, img, depth):
         img = self.resize(image=img)["image"]
