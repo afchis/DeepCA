@@ -20,6 +20,8 @@ class NYUDataset(Dataset):
         h, w = params["dataset"]["size"]
         self.stage = stage
         dataset_stage = "train" if stage in ["train", "valid"] else "test"
+        if not dataset_stage == "train":
+            dataset_stage == "test"
         self.anno_path = os.path.join(self._data_path_, "data", f"nyu2_{dataset_stage}.csv")
         self.anno = pl.read_csv(source=self.anno_path, has_header=False)
         self._split_data()
@@ -27,8 +29,7 @@ class NYUDataset(Dataset):
         #     self._split_data()
         self.resize = A.Resize(h, w)
         self.transforms_img = A.Compose([
-            A.RandomBrightnessContrast(),
-            A.Normalize()
+            A.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
         ])
         self.dropout = A.CoarseDropout(
             min_holes=int(h*w*0.89),
@@ -40,11 +41,13 @@ class NYUDataset(Dataset):
         self.toTensor = ToTensorV2()
     
     def _split_data(self):
-        split_value = int(len(self.anno) * 0.9)
+        split_value = len(self.anno) // 11
         if self.stage == "train":
-            self.anno = self.anno[:split_value]
+            self.anno = self.anno[:split_value * 10]
+            # self.anno = self.anno[:1001]
         elif self.stage == "valid":
-            self.anno = self.anno[split_value:]
+            self.anno = self.anno[split_value * 10 + 1:]
+            # self.anno = self.anno[:89]
 
     def _transforms(self, img, depth):
         img = self.resize(image=img)["image"]
@@ -52,9 +55,9 @@ class NYUDataset(Dataset):
         img = self.toTensor(image=img)["image"]
         depth = self.resize(image=depth)["image"]
         additional_channel = self.toTensor(image=self.dropout(image=depth)["image"])["image"]
-        img = torch.cat([img, additional_channel], dim=0)
+        img = torch.cat([img, additional_channel / 255.], dim=0)
         depth = self.toTensor(image=depth)["image"]
-        return img / 255., depth / 255.
+        return img, depth / 255.
 
     def __getitem__(self, idx):
         img_path, depth_path = (os.path.join(self._data_path_, item) for item in self.anno.row(idx))

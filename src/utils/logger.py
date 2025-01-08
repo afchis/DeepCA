@@ -3,6 +3,8 @@ import time
 import shutil
 import typing as t
 
+from torch.utils.tensorboard import SummaryWriter
+
 
 class Logger:
     def __init__(self, trainer):
@@ -17,6 +19,8 @@ class Logger:
         curr_time = time.strftime("%a, %d %b %Y %H:%M:%S", time.gmtime())
         message =  f"Learning start. Currnet time: {curr_time}. "
         message += f"Num epoch: {self.num_epochs}. Start lr: {self.lr}"
+        self._print_message(message)
+        self.tensorboard_writter = SummaryWriter(f"_logs_/{trainer.meta['params']['experiment_name']}/logs")
 
     def init(self, loss_metrics: t.Dict[str, t.Dict[str, t.List[str]]]):
         self.progress = 0.0
@@ -43,56 +47,60 @@ class Logger:
         for stage, stage_dict in self.accum_dicts.items():
             for t_type, target_dict in stage_dict.items():
                 for t_name, target_list in target_dict.items():
-                    stage_dict = type(target_list)()
+                    self.accum_dicts[stage][t_type][t_name] = []
 
     def finish(self):
         self.progress = 100.0
 
-    def _print_message(self, message: str, last_iter: bool):
+    def _print_message(self, message: str, last_iter: bool = True):
         terminal_width = shutil.get_terminal_size().columns
         if len(message) > terminal_width:
             message = message[:terminal_width]
         print(" " * terminal_width, end="\r")
         print(message, end = "" if last_iter else "\r")
 
-    def _get_losses(self, losses_dict, last_iter=False):
-        loss_message = str()
-        if len(losses_dict) == 0:
-            loss_message = "None"
-        else:
-            for loss_name, loss in losses_dict.items():
-                if last_iter:
-                    l = sum(loss) / len(loss) / self.world_size
-                    losses_dict[loss_name] = [losses_dict[loss_name][-1]]
-                else:
-                    l = loss[-1] / self.world_size
-                loss_message += f"{loss_name}: {l:.4} "
-        return loss_message[:-1]
-    
     def step(self, data: t.Dict[str, t.Dict[str, t.List[float]]], stage: str = "train"):
         self.iters[stage] += 1
         self.iters["epoch"] += 1
         self.iters["total"] += 1
         self.progress = self.iters["total"] / self.total_iters * 100
-        for t_type, target_dict in data.items():
+        for t_type, target_dict in self.accum_dicts[stage].items():
             for t_name, target_float in data[t_type].items():
                 self.accum_dicts[stage][t_type][t_name].append(target_float)
-        self._iter_message(stage)
+        self._iter_message()
 
-    def _iter_message(self, stage):
-        type_message = str()
-        for t_type, target_dict in self.accum_dicts[stage].items():
-            target_message = str()
-            for t_name, target_list in target_dict.items():
-                value = target_list[-1]
-                target_message += f"{t_name}: {value:.4f} "
-            type_message += f"{t_type} -> {target_message}"
-        stage_message = f"{stage}: {type_message}"
-        message = f"Train: Iter: ({self.iters['total']}): [{self.progress:.2f}{chr(37)}] || {stage_message}||"
-        self._print_message(message=message, last_iter=False)
+    def _iter_message(self):
+        stage_messages = list()
+        for stage, stage_dict in self.accum_dicts.items():
+            type_message = list()
+            for t_type, target_dict in stage_dict.items():
+                target_message = str()
+                for t_name, target_list in target_dict.items():
+                    if not target_list:
+                        last_iter = False
+                        value_str = "None"
+                    elif self.iters["epoch"] == self.total_iters_in_epoch:
+                        last_iter = True
+                        value = sum(target_list) / (len(target_list) * self.world_size)
+                        value_str = f"{value:.4f}"
+                    else:
+                        last_iter = False
+                        value = target_list[-1] / self.world_size
+                        self.graph_write(stage, t_type, t_name, value)
+                        value_str = f"{value:.4f}"
+                    target_message += f"{t_name}: {value_str} "
+                type_message.append(f"{t_type} -> {target_message}")
+            type_message = "| ".join(type_message)
+            stage_messages.append(f"{stage}: {type_message}")
+        if not last_iter:
+            message = f"Train: [{self.progress:.2f}{chr(37)}] Iter: [{self.iters['total']}] || {'|| '.join(stage_messages)}||"
+        else:
+            message = f"Epoch: {self.epoch} || {'|| '.join(stage_messages)} ||"
+        self._print_message(message=message, last_iter=last_iter)
 
-    def graph_write(self, name, value, info, last_iter=False):
-        raise NotImplementedError("Logger.graph_write")
+    def graph_write(self, stage: str, target_type: str, target_name: str, value: float):
+        name = "_".join((stage, target_name))
+        self.tensorboard_writter.add_scalars(target_type, {name: value}, self.iters["train"])
 
     def rank_0(self, call):
         if self.rank == 0:

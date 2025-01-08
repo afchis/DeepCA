@@ -1,15 +1,15 @@
 {
-    "experiment_name": "default",
+    "experiment_name": "admm_true_large",
     "model": {
         "in_channels": 4,
         "name": "resnet18",
-        "num_layers": 4,
-        "admm": false,
+        "num_layers": 3,
+        "admm": true,
         "rho": 1,
         "iters": 20
     },
     "dataset": {   
-        "size": [256, 256]
+        "size": [128, 128]
     },
     "criterion": "mse_loss",
     "solver": "Adam",
@@ -19,10 +19,10 @@
     "eps": 1e-06,
     "weight_decay": 1e-06,
     "policy": "StepLR",
-    "step_size": 2,
+    "step_size": 5,
     "gamma": 0.75,
-    "max_epoch": 20,
-    "batch_size": 32,
+    "max_epoch": 50,
+    "batch_size": 16,
     "num_workers": 8,
     "target_devices": [0],
     "num_nodes": 1

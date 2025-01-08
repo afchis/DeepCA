@@ -15,6 +15,8 @@ from .utils.get_loss_fn import get_loss_fn
 # from utils.save_load_model import save_model, load_model
 from .utils.logger import Logger
 
+from torchvision.utils import save_image # Temp
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--params", type=str, default="default.json")
@@ -31,6 +33,7 @@ class TrainerMultiGPU:
         self._model_init()
         self._get_loaders()
         self.loss_fn = get_loss_fn(self.meta["params"])
+        self.metric_fn = torch.nn.MSELoss()
         self._get_learning_step()
         self.optimizer = get_optimizer(self.model, self.meta["params"])
         self.scheduler = get_scheduler(self.optimizer, self.meta["params"])
@@ -63,16 +66,19 @@ class TrainerMultiGPU:
         self.valid_loader = get_loader(self.meta["params"], stage="valid")
         self.train_len = len(self.train_loader)
         self.valid_len = len(self.valid_loader)
-        self.valid_ratio = int(self.train_len / self.valid_len)
+        self.valid_ratio = self.train_len // self.valid_len
 
     def _get_learning_step(self):
+        self.imgs_dir = os.path.join("_logs_", self.meta["params"]["experiment_name"], "imgs")
+        os.makedirs(self.imgs_dir, exist_ok=True)
         self.logger = Logger(trainer=self)
         loss_metrics = {
             "train": {
-                "losses": ["l1_loss"],
+                "losses": ["mse_loss"],
             },
             "valid": {
-                "losses": ["l1_loss"],
+                "losses": ["mse_loss"],
+                "metrics": ["l1"]
             },
         }
         self.logger.init(loss_metrics)
@@ -126,25 +132,45 @@ class TrainerMultiGPU:
         if self.meta["world_size"] > 1: dist.all_reduce(loss)
         out = {
             "losses": {
-                "l1_loss": loss.item()*1000,
-            }
+                "mse_loss": loss.item() * 10000,
+            },
+            "imgs": [img[:-1], depth, pred]
         }
         return out
 
     @torch.no_grad()
     def _valid_step(self, data):
+        save_img = True if self.logger.iters["valid"] + 1 == len(self.valid_loader) else False
+        if save_img:
+            self._save_img(epoch=self.logger.epoch, stage="train", imgs=data["imgs"])
         data = next(self.valid_iterator)
         self.model.eval()
         img, depth = self._data_to_device(data)
         pred = self.model(img)
         loss = self.loss_fn(pred, depth)
-        if self.meta["world_size"] > 1: dist.all_reduce(loss)
+        metric = self.metric_fn(pred, depth)
+        if self.meta["world_size"] > 1: 
+            dist.all_reduce(loss)
+            dist.all_reduce(metric)
         out = {
             "losses": {
-                "l1_loss": loss.item()*1000,
+                "mse_loss": loss.item() * 10000,
+            },
+            "metrics": {
+                "l1": metric.item() * 1000
             }
         }
+        if save_img:
+            self._save_img(self.logger.epoch, stage="valid", imgs=[img[:-1], depth, pred])
         return out
+
+    def _save_img(self, epoch, stage, imgs):
+        img, depth, pred = imgs
+        img = ((img * 0.5) + 0.5)
+        for i in range(4):
+            save_image(img[i], os.path.join(self.imgs_dir, f"e_{epoch}_{stage}_{i}_img.png"))
+            save_image(depth[i], os.path.join(self.imgs_dir, f"e_{epoch}_{stage}_{i}_depth.png"))
+            save_image(pred[i], os.path.join(self.imgs_dir, f"e_{epoch}_{stage}_{i}_pred.png"))
 
 
 def main(rank, world_size, params):
